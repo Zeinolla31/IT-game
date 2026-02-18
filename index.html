@@ -2,12 +2,10 @@
 <html lang="ru">
 <head>
     <meta charset="UTF-8">
-    <title>Online Своя Игра: IT Лайт</title>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.17.1/firebase-database-compat.js"></script>
+    <title>Своя Игра: IT Лайт</title>
     <style>
         body {
-            font-family: 'Segoe UI', Tahoma, sans-serif;
+            font-family: 'Segoe UI', sans-serif;
             background-color: #000033;
             color: white;
             display: flex;
@@ -49,18 +47,18 @@
             font-size: 1.5em;
             font-weight: bold;
             cursor: pointer;
-            transition: 0.3s;
         }
 
         .cell:hover { background-color: #3333ff; }
         .cell.visited { color: #000066; border-color: #000066; cursor: default; }
 
+        /* Игроки */
         .players-container {
             display: grid;
             grid-template-columns: repeat(5, 1fr);
             gap: 10px;
             width: 100%;
-            max-width: 1100px;
+            max-width: 1000px;
         }
 
         .player-card {
@@ -72,11 +70,12 @@
 
         .score { font-size: 1.8em; margin: 5px 0; color: #ffd700; }
         .score-controls button {
-            width: 35px; height: 35px; cursor: pointer; border: none; font-weight: bold; margin: 2px;
+            width: 35px; height: 35px; cursor: pointer; border: none; font-weight: bold;
         }
         .btn-plus { background: #28a745; color: white; }
         .btn-minus { background: #dc3545; color: white; }
 
+        /* Окно вопроса */
         #modal {
             display: none;
             position: fixed;
@@ -93,18 +92,13 @@
         #answer-text { font-size: 1.8em; color: #00ff00; display: none; margin: 20px; }
         
         .modal-btns button {
-            padding: 15px 30px; font-size: 1.1em; cursor: pointer; margin: 10px;
-            background: #ffd700; border: none; font-weight: bold;
-        }
-
-        #reset-btn {
-            margin-top: 20px; padding: 5px 15px; background: #666; color: white; border: none; cursor: pointer;
+            padding: 10px 20px; font-size: 1em; cursor: pointer; margin: 5px;
         }
     </style>
 </head>
 <body>
 
-    <h1>ИТ-ВИКТОРИНА (ONLINE)</h1>
+    <h1>ИТ-ВИКТОРИНА</h1>
 
     <div class="board" id="game-board">
         <div class="category-title">Интернет</div>
@@ -114,158 +108,96 @@
         <div class="category-title">Разное</div>
     </div>
 
-    <div class="players-container" id="players-box"></div>
-
-    <button id="reset-btn" onclick="resetGame()">Сбросить игру</button>
+    <div class="players-container" id="players">
+        </div>
 
     <div id="modal">
-        <div id="modal-val" style="color: #ffd700; font-size: 1.2em;"></div>
         <div id="question-text">Вопрос</div>
         <div id="answer-text">Ответ</div>
         <div class="modal-btns">
             <button onclick="document.getElementById('answer-text').style.display='block'">ОТВЕТ</button>
-            <button onclick="closeRemoteModal()">ЗАКРЫТЬ У ВСЕХ</button>
+            <button onclick="closeModal()">К ТАБЛИЦЕ</button>
         </div>
     </div>
 
     <script>
-        // Конфигурация Firebase
-        const firebaseConfig = {
-            apiKey: "AIzaSyCO0T64vhhuZ4hb772nTfC1YhICzvjdMdU",
-            authDomain: "my-jeopardy-6391f.firebaseapp.com",
-            databaseURL: "https://my-jeopardy-6391f-default-rtdb.europe-west1.firebasedatabase.app",
-            projectId: "my-jeopardy-6391f",
-            storageBucket: "my-jeopardy-6391f.firebasestorage.app",
-            messagingSenderId: "488723465278",
-            appId: "1:488723465278:web:11f794e55bfb3b6a86fd6f",
-            measurementId: "G-3MP91T959M"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const db = firebase.database();
-
-        // Список упрощенных вопросов
-        const questions = [
+        const categories = [
+            // Интернет
             {q: "Всемирная паутина тремя буквами.", a: "WWW", v: 100},
-            {q: "На нее мы нажимаем, чтобы печатать.", a: "Клавиатура", v: 200},
-            {q: "Секретное слово для входа.", a: "Пароль", v: 300},
-            {q: "Система от Microsoft.", a: "Windows", v: 400},
-            {q: "Минимальный бит информации (0 или 1).", a: "Бит", v: 500},
-
-            {q: "Программа для сайтов (Chrome, Safari).", a: "Браузер", v: 100},
-            {q: "Портативный складной компьютер.", a: "Ноутбук", v: 200},
-            {q: "Вредоносная программа.", a: "Вирус", v: 300},
-            {q: "Программа для текстов (от Microsoft).", a: "Word", v: 400},
-            {q: "Картинка-эмоция в чате.", a: "Смайлик / Эмодзи", v: 500},
-
-            {q: "Как называется главная страница сайта?", a: "Frontend / Лицо сайта", v: 100},
-            {q: "Хранилище файлов в кармане.", a: "Флешка", v: 200},
-            {q: "Рекламные письма, которые мы не ждали.", a: "Спам", v: 300},
-            {q: "Программа для презентаций.", a: "PowerPoint", v: 400},
-            {q: "Снимок экрана.", a: "Скриншот", v: 500},
-
-            {q: "Значок @ называют именно так.", a: "Собака", v: 100},
-            {q: "Главная плата внутри ПК.", a: "Материнская плата", v: 200},
-            {q: "Человек, который взламывает сети.", a: "Хакер", v: 300},
-            {q: "Магазин приложений на Android.", a: "Google Play", v: 400},
-            {q: "Процесс установки программы.", a: "Инсталляция", v: 500},
-
-            {q: "Скорость интернета измеряется в...", a: "Мбит/с (Мегабиты)", v: 100},
-            {q: "Устройство для печати на бумаге.", a: "Принтер", v: 200},
-            {q: "Программа для борьбы с вирусами.", a: "Антивирус", v: 300},
-            {q: "Куда попадают удаленные файлы?", a: "Корзина", v: 400},
+            {q: "Программа для просмотра сайтов (Chrome, Safari).", a: "Браузер", v: 200},
+            {q: "Как называется 'лицо' сайта, которое мы видим?", a: "Главная страница", v: 300},
+            {q: "Значок @ в народе называют именно так.", a: "Собака", v: 400},
+            {q: "Скорость интернета обычно измеряется в... (единица).", a: "Мбит/с (Мегабиты)", v: 500},
+            // Устройства
+            {q: "На нее мы нажимаем, чтобы печатать текст.", a: "Клавиатура", v: 100},
+            {q: "Портативный компьютер, который можно сложить.", a: "Ноутбук", v: 200},
+            {q: "Хранилище файлов, которое можно носить в кармане.", a: "Флешка", v: 300},
+            {q: "Главная плата в компьютере.", a: "Материнская плата", v: 400},
+            {q: "Устройство для печати документов на бумаге.", a: "Принтер", v: 500},
+            // Безопасность
+            {q: "Секретное слово для входа в аккаунт.", a: "Пароль", v: 100},
+            {q: "Вредоносная программа, которая 'лечится'.", a: "Вирус", v: 200},
+            {q: "Письма с рекламой, которые мы не заказывали.", a: "Спам", v: 300},
+            {q: "Тот, кто взламывает чужие компьютеры.", a: "Хакер", v: 400},
+            {q: "Специальная программа для борьбы с вирусами.", a: "Антивирус", v: 500},
+            // Программы
+            {q: "Самая известная операционная система от Microsoft.", a: "Windows", v: 100},
+            {q: "Программа для создания текстов (от компании Microsoft).", a: "Word", v: 200},
+            {q: "Программа для создания ярких презентаций.", a: "PowerPoint", v: 300},
+            {q: "Название 'магазина' приложений на Android.", a: "Google Play / Play Market", v: 400},
+            {q: "Корзина в ОС нужна для...?", a: "Удаления (временного хранения) файлов", v: 500},
+            // Разное
+            {q: "Минимальная единица информации (0 или 1).", a: "Бит", v: 100},
+            {q: "Маленькая картинка в чате для эмоций.", a: "Смаилик / Эмодзи", v: 200},
+            {q: "Как называется снимок экрана?", a: "Скриншот", v: 300},
+            {q: "Процесс установки программы в систему.", a: "Инсталляция (Установка)", v: 400},
             {q: "Сколько бит в одном байте?", a: "8", v: 500}
         ];
 
-        let currentVal = 0;
+        let lastValue = 0;
+        const board = document.getElementById('game-board');
+        const playersBox = document.getElementById('players');
 
-        // Инициализация поля
-        function initBoard(visited) {
-            const board = document.getElementById('game-board');
-            // Очищаем, кроме заголовков
-            const titles = Array.from(board.querySelectorAll('.category-title'));
-            board.innerHTML = '';
-            titles.forEach(t => board.appendChild(t));
-
-            for(let row=0; row<5; row++) {
-                for(let col=0; col<5; col++) {
-                    const idx = col * 5 + row;
-                    const qData = questions[idx];
-                    const cell = document.createElement('div');
-                    cell.className = 'cell' + (visited && visited[idx] ? ' visited' : '');
-                    cell.innerText = qData.v;
-                    cell.onclick = () => {
-                        if(cell.classList.contains('visited')) return;
-                        db.ref('gameState').set({
-                            activeIdx: idx,
-                            showModal: true
-                        });
-                        db.ref('visited/' + idx).set(true);
-                    };
-                    board.appendChild(cell);
-                }
+        // Создаем поле
+        for(let i=0; i<5; i++) {
+            for(let j=0; j<5; j++) {
+                let d = categories[j*5 + i];
+                let c = document.createElement('div');
+                c.className = 'cell';
+                c.innerText = d.v;
+                c.onclick = () => {
+                    if(c.classList.contains('visited')) return;
+                    lastValue = d.v;
+                    document.getElementById('question-text').innerText = d.q;
+                    document.getElementById('answer-text').innerText = d.a;
+                    document.getElementById('answer-text').style.display = 'none';
+                    document.getElementById('modal').style.display = 'flex';
+                    c.classList.add('visited');
+                };
+                board.appendChild(c);
             }
         }
 
-        // Синхронизация счета
-        function changeScore(pIdx, delta) {
-            const ref = db.ref('scores/' + pIdx);
-            ref.transaction(s => (s || 0) + delta);
+        // Создаем 5 команд
+        for(let i=1; i<=5; i++) {
+            playersBox.innerHTML += `
+                <div class="player-card">
+                    <div contenteditable="true">Команда ${i}</div>
+                    <div class="score" id="s${i}">0</div>
+                    <div class="score-controls">
+                        <button class="btn-minus" onclick="upd(${i},-1)">-</button>
+                        <button class="btn-plus" onclick="upd(${i},1)">+</button>
+                    </div>
+                </div>
+            `;
         }
 
-        // Закрытие модалки для всех
-        function closeRemoteModal() {
-            db.ref('gameState/showModal').set(false);
+        function upd(id, dir) {
+            let s = document.getElementById('s'+id);
+            s.innerText = parseInt(s.innerText) + (dir * lastValue);
         }
 
-        // Полный сброс
-        function resetGame() {
-            if(confirm("Сбросить все очки и вопросы?")) {
-                db.ref('/').set({
-                    scores: [0,0,0,0,0],
-                    visited: {},
-                    gameState: { activeIdx: 0, showModal: false }
-                });
-            }
-        }
-
-        // СЛУШАТЕЛИ FIREBASE
-        db.ref('visited').on('value', snap => initBoard(snap.val()));
-
-        db.ref('scores').on('value', snap => {
-            const scores = snap.val() || [0,0,0,0,0];
-            const box = document.getElementById('players-box');
-            box.innerHTML = '';
-            scores.forEach((s, i) => {
-                box.innerHTML += `
-                    <div class="player-card">
-                        <div contenteditable="true">Команда ${i+1}</div>
-                        <div class="score">${s}</div>
-                        <div class="score-controls">
-                            <button class="btn-minus" onclick="changeScore(${i}, -currentVal)">-</button>
-                            <button class="btn-plus" onclick="changeScore(${i}, currentVal)">+</button>
-                        </div>
-                    </div>`;
-            });
-        });
-
-        db.ref('gameState').on('value', snap => {
-            const state = snap.val();
-            const modal = document.getElementById('modal');
-            if(state && state.showModal) {
-                const q = questions[state.activeIdx];
-                currentVal = q.v;
-                document.getElementById('modal-val').innerText = "Очки: " + q.v;
-                document.getElementById('question-text').innerText = q.q;
-                document.getElementById('answer-text').innerText = "ОТВЕТ: " + q.a;
-                document.getElementById('answer-text').style.display = 'none';
-                modal.style.display = 'flex';
-            } else {
-                modal.style.display = 'none';
-            }
-        });
-
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
     </script>
 </body>
 </html>
-
