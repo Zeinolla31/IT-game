@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Своя Игра: IT Лайт</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background-color: #000033;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(5, 180px);
+            gap: 10px;
+            margin-bottom: 30px;
+        }
+
+        .category-title {
+            background-color: #0000ff;
+            border: 2px solid white;
+            padding: 10px;
+            text-align: center;
+            font-size: 0.85em;
+            font-weight: bold;
+            min-height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-transform: uppercase;
+        }
+
+        .cell {
+            background-color: #0000ff;
+            border: 2px solid #ffd700;
+            color: #ffd700;
+            height: 70px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5em;
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        .cell:hover { background-color: #3333ff; }
+        .cell.visited { color: #000066; border-color: #000066; cursor: default; }
+
+        /* Игроки */
+        .players-container {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 10px;
+            width: 100%;
+            max-width: 1000px;
+        }
+
+        .player-card {
+            background: #000066;
+            border: 1px solid white;
+            padding: 10px;
+            text-align: center;
+        }
+
+        .score { font-size: 1.8em; margin: 5px 0; color: #ffd700; }
+        .score-controls button {
+            width: 35px; height: 35px; cursor: pointer; border: none; font-weight: bold;
+        }
+        .btn-plus { background: #28a745; color: white; }
+        .btn-minus { background: #dc3545; color: white; }
+
+        /* Окно вопроса */
+        #modal {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,50,0.95);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+            text-align: center;
+        }
+
+        #question-text { font-size: 2em; padding: 20px; max-width: 80%; }
+        #answer-text { font-size: 1.8em; color: #00ff00; display: none; margin: 20px; }
+        
+        .modal-btns button {
+            padding: 10px 20px; font-size: 1em; cursor: pointer; margin: 5px;
+        }
+    </style>
+</head>
+<body>
+
+    <h1>ИТ-ВИКТОРИНА</h1>
+
+    <div class="board" id="game-board">
+        <div class="category-title">Интернет</div>
+        <div class="category-title">Устройства</div>
+        <div class="category-title">Безопасность</div>
+        <div class="category-title">Программы</div>
+        <div class="category-title">Разное</div>
+    </div>
+
+    <div class="players-container" id="players">
+        </div>
+
+    <div id="modal">
+        <div id="question-text">Вопрос</div>
+        <div id="answer-text">Ответ</div>
+        <div class="modal-btns">
+            <button onclick="document.getElementById('answer-text').style.display='block'">ОТВЕТ</button>
+            <button onclick="closeModal()">К ТАБЛИЦЕ</button>
+        </div>
+    </div>
+
+    <script>
+        const categories = [
+            // Интернет
+            {q: "Всемирная паутина тремя буквами.", a: "WWW", v: 100},
+            {q: "Программа для просмотра сайтов (Chrome, Safari).", a: "Браузер", v: 200},
+            {q: "Как называется 'лицо' сайта, которое мы видим?", a: "Главная страница", v: 300},
+            {q: "Значок @ в народе называют именно так.", a: "Собака", v: 400},
+            {q: "Скорость интернета обычно измеряется в... (единица).", a: "Мбит/с (Мегабиты)", v: 500},
+            // Устройства
+            {q: "На нее мы нажимаем, чтобы печатать текст.", a: "Клавиатура", v: 100},
+            {q: "Портативный компьютер, который можно сложить.", a: "Ноутбук", v: 200},
+            {q: "Хранилище файлов, которое можно носить в кармане.", a: "Флешка", v: 300},
+            {q: "Главная плата в компьютере.", a: "Материнская плата", v: 400},
+            {q: "Устройство для печати документов на бумаге.", a: "Принтер", v: 500},
+            // Безопасность
+            {q: "Секретное слово для входа в аккаунт.", a: "Пароль", v: 100},
+            {q: "Вредоносная программа, которая 'лечится'.", a: "Вирус", v: 200},
+            {q: "Письма с рекламой, которые мы не заказывали.", a: "Спам", v: 300},
+            {q: "Тот, кто взламывает чужие компьютеры.", a: "Хакер", v: 400},
+            {q: "Специальная программа для борьбы с вирусами.", a: "Антивирус", v: 500},
+            // Программы
+            {q: "Самая известная операционная система от Microsoft.", a: "Windows", v: 100},
+            {q: "Программа для создания текстов (от компании Microsoft).", a: "Word", v: 200},
+            {q: "Программа для создания ярких презентаций.", a: "PowerPoint", v: 300},
+            {q: "Название 'магазина' приложений на Android.", a: "Google Play / Play Market", v: 400},
+            {q: "Корзина в ОС нужна для...?", a: "Удаления (временного хранения) файлов", v: 500},
+            // Разное
+            {q: "Минимальная единица информации (0 или 1).", a: "Бит", v: 100},
+            {q: "Маленькая картинка в чате для эмоций.", a: "Смаилик / Эмодзи", v: 200},
+            {q: "Как называется снимок экрана?", a: "Скриншот", v: 300},
+            {q: "Процесс установки программы в систему.", a: "Инсталляция (Установка)", v: 400},
+            {q: "Сколько бит в одном байте?", a: "8", v: 500}
+        ];
+
+        let lastValue = 0;
+        const board = document.getElementById('game-board');
+        const playersBox = document.getElementById('players');
+
+        // Создаем поле
+        for(let i=0; i<5; i++) {
+            for(let j=0; j<5; j++) {
+                let d = categories[j*5 + i];
+                let c = document.createElement('div');
+                c.className = 'cell';
+                c.innerText = d.v;
+                c.onclick = () => {
+                    if(c.classList.contains('visited')) return;
+                    lastValue = d.v;
+                    document.getElementById('question-text').innerText = d.q;
+                    document.getElementById('answer-text').innerText = d.a;
+                    document.getElementById('answer-text').style.display = 'none';
+                    document.getElementById('modal').style.display = 'flex';
+                    c.classList.add('visited');
+                };
+                board.appendChild(c);
+            }
+        }
+
+        // Создаем 5 команд
+        for(let i=1; i<=5; i++) {
+            playersBox.innerHTML += `
+                <div class="player-card">
+                    <div contenteditable="true">Команда ${i}</div>
+                    <div class="score" id="s${i}">0</div>
+                    <div class="score-controls">
+                        <button class="btn-minus" onclick="upd(${i},-1)">-</button>
+                        <button class="btn-plus" onclick="upd(${i},1)">+</button>
+                    </div>
+                </div>
+            `;
+        }
+
+        function upd(id, dir) {
+            let s = document.getElementById('s'+id);
+            s.innerText = parseInt(s.innerText) + (dir * lastValue);
+        }
+
+        function closeModal() { document.getElementById('modal').style.display = 'none'; }
+    </script>
+</body>
+</html>
