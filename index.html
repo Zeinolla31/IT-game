@@ -15,6 +15,23 @@
             padding: 20px;
         }
 
+        /* Кнопки управления */
+        .admin-controls {
+            margin-bottom: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .btn-admin {
+            padding: 10px 20px;
+            background-color: #ffd700;
+            border: none;
+            border-radius: 5px;
+            font-weight: bold;
+            cursor: pointer;
+            color: #000033;
+        }
+
         .board {
             display: grid;
             grid-template-columns: repeat(5, 180px);
@@ -52,13 +69,13 @@
         .cell:hover { background-color: #3333ff; }
         .cell.visited { color: #000066; border-color: #000066; cursor: default; }
 
-        /* Игроки */
+        /* Игроки - теперь сетка адаптивная */
         .players-container {
             display: grid;
-            grid-template-columns: repeat(5, 1fr);
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
             gap: 10px;
             width: 100%;
-            max-width: 1000px;
+            max-width: 1200px;
         }
 
         .player-card {
@@ -100,6 +117,10 @@
 
     <h1>ИТ-ВИКТОРИНА</h1>
 
+    <div class="admin-controls">
+        <button class="btn-admin" onclick="addTeam()">+ ДОБАВИТЬ КОМАНДУ</button>
+    </div>
+
     <div class="board" id="game-board">
         <div class="category-title">Интернет</div>
         <div class="category-title">Устройства</div>
@@ -108,8 +129,7 @@
         <div class="category-title">Разное</div>
     </div>
 
-    <div class="players-container" id="players">
-        </div>
+    <div class="players-container" id="players"></div>
 
     <div id="modal">
         <div id="question-text">Вопрос</div>
@@ -159,6 +179,7 @@
         ];
         
         let lastValue = 0;
+        let teamCounter = 0;
         const board = document.getElementById('game-board');
         const playersBox = document.getElementById('players');
 
@@ -182,19 +203,26 @@
             }
         }
 
-        // Создаем 5 команд
-        for(let i=1; i<=5; i++) {
-            playersBox.innerHTML += `
-                <div class="player-card">
-                    <div contenteditable="true">Команда ${i}</div>
-                    <div class="score" id="s${i}">0</div>
-                    <div class="score-controls">
-                        <button class="btn-minus" onclick="upd(${i},-1)">-</button>
-                        <button class="btn-plus" onclick="upd(${i},1)">+</button>
-                    </div>
+        // Функция добавления команды
+        function addTeam() {
+            teamCounter++;
+            const teamId = teamCounter;
+            const card = document.createElement('div');
+            card.className = 'player-card';
+            card.id = `card-${teamId}`;
+            card.innerHTML = `
+                <div contenteditable="true">Команда ${teamId}</div>
+                <div class="score" id="s${teamId}">0</div>
+                <div class="score-controls">
+                    <button class="btn-minus" onclick="upd(${teamId},-1)">-</button>
+                    <button class="btn-plus" onclick="upd(${teamId},1)">+</button>
                 </div>
             `;
+            playersBox.appendChild(card);
         }
+
+        // Добавим первые 3 команды автоматически при старте
+        for(let i=0; i<3; i++) addTeam();
 
         function upd(id, dir) {
             let s = document.getElementById('s'+id);
@@ -205,5 +233,3 @@
     </script>
 </body>
 </html>
-
-
